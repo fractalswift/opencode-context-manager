@@ -1,12 +1,6 @@
 # Dependencies
 node_modules/
 
-# Lock files (regenerated on install)
-package-lock.json
-bun.lockb
-yarn.lock
-pnpm-lock.yaml
-
 # OS files
 .DS_Store
 Thumbs.db
@@ -21,6 +15,5 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Build artifacts
-dist/
-build/
+# Test output
+coverage/
