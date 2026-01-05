@@ -1,0 +1,29 @@
+{
+  "name": "opencode-context",
+  "version": "1.0.0",
+  "description": "OpenCode plugin that maintains repository context for AI agents",
+  "keywords": [
+    "opencode",
+    "plugin",
+    "context",
+    "repository",
+    "ai",
+    "code-assistant"
+  ],
+  "author": "Matthew Macklin",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matthewmacklin/opencode-context.git"
+  },
+  "bugs": {
+    "url": "https://github.com/matthewmacklin/opencode-context/issues"
+  },
+  "homepage": "https://github.com/matthewmacklin/opencode-context#readme",
+  "files": [
+    ".opencode"
+  ],
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.0.223"
+  }
+}
