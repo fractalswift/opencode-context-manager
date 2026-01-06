@@ -44,11 +44,8 @@ npx opencode-context-manager init --global
 After installation, generate your context files:
 
 ```bash
-# Option 1: Run inside OpenCode
+# Run inside OpenCode
 /context-update
-
-# Option 2: Run from terminal
-opencode run "/context-update"
 ```
 
 The skill will:
@@ -246,6 +243,64 @@ your-project/
 │       └── backend/             # Optional, if relevant
 │           └── api.md
 └── opencode.json                # Config with glob pattern
+```
+
+## Automation / CI
+
+You can run context updates non-interactively using the OpenCode CLI. This is useful for:
+
+- Git hooks (post-commit, pre-push)
+- CI pipelines (on PR merge to main)
+- Scripts
+
+```bash
+opencode run --model <provider/model> "/context-update"
+```
+
+**Note**: The `--model` flag is required in non-interactive mode.
+
+### Example: GitHub Actions (on PR merge)
+
+```yaml
+# .github/workflows/context-update.yml
+name: Update Context
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  update-context:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install OpenCode
+        run: curl -fsSL https://opencode.ai/install | bash
+      
+      - name: Update context
+        run: opencode run --model <provider/model> "/context-update"
+        env:
+          # Add your provider's API key as a secret
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .opencode/context/
+          git diff --staged --quiet || git commit -m "chore: update repo context"
+          git push
+```
+
+### Example: GitHub Actions (on every push)
+
+```yaml
+on:
+  push:
+    branches: [main]
 ```
 
 ## Security Note
