@@ -1,12 +1,12 @@
 # Context Manager for OpenCode
 
-A skill and command package for OpenCode that maintains an up-to-date knowledge base about your repository structure, components, and conventions.
+No more wasting the first 20% of your session context asking the agent to explore your repo, and no more repeating yourself every session. The agent will know your codebase structure. This doesn't take many tokens away from your context as the structure is already summarized in markdown.
 
 ## What It Does
 
-The Context Manager scans your repository and creates/updates `.opencode/context/repo-structure.md` - a comprehensive document that serves as a knowledge base for AI agents working on your codebase.
+The Context Manager scans your repository and creates/updates **modular context files** in `.opencode/context/`. It always creates `repo-structure.md` with core project info, and optionally creates additional files for components, hooks, API endpoints, etc. based on what it discovers.
 
-Once installed, the context file is **automatically included in every prompt**, giving the AI persistent knowledge about your project.
+Once installed, context files are **automatically included in every prompt**, giving the AI persistent knowledge about your project.
 
 ## Why Use It?
 
@@ -25,8 +25,9 @@ npx opencode-context-manager init
 ```
 
 This will:
+
 1. Install the `/context-update` command and skill
-2. Configure `opencode.json` to include the context file in every prompt
+2. Configure `opencode.json` to include context files in every prompt (via glob pattern)
 
 ### Options
 
@@ -40,45 +41,58 @@ npx opencode-context-manager init --global
 
 ## Usage
 
-After installation, run the command in OpenCode:
+After installation, generate your context files:
 
-```
+```bash
+# Option 1: Run inside OpenCode
 /context-update
+
+# Option 2: Run from terminal
+opencode run "/context-update"
 ```
 
 The skill will:
+
 1. Scan the repository from your current directory downward
 2. Discover components, hooks, services, types, and patterns
-3. Create/update `.opencode/context/repo-structure.md`
+3. Create/update context files in `.opencode/context/`
 4. Report what changed
 
 ### First Run
 
 ```
-Created .opencode/context/repo-structure.md
+Created context files in .opencode/context/
 
-Summary:
-- Scanned from: /Users/you/project
-- Found: 12 components, 5 hooks, 3 services
-- Tech stack: React 19.2.0 with TypeScript
+  repo-structure.md
+    - Tech stack: React 19.2.0 with TypeScript
+    - Directory structure mapped
+    - 5 environment variables documented
 
-Context file created. AI agents can now reference this for repository knowledge.
+  frontend/components.md
+    - 12 reusable components documented
+
+  frontend/hooks.md
+    - 5 custom hooks documented
+
+Summary: Created 3 context files.
 ```
 
 ### Subsequent Runs
 
 ```
-Updated .opencode/context/repo-structure.md
+Updated context files in .opencode/context/
 
-Changes:
-+ Added component: WeatherSummary (src/components/WeatherSummary.tsx)
-+ Added hook: useSummary (src/hooks/useSummary.ts)
-+ Added service: ollamaApi (src/services/ollamaApi.ts)
-~ Updated Tech Stack: added @types/node v24.10.1
+  repo-structure.md
+    ~ Updated Tech Stack: added @types/node v24.10.1
 
-Summary: Detected 1 new component, 1 new hook, 1 new service since last scan.
+  frontend/components.md
+    + Added: WeatherSummary, LoadingSpinner (2 new)
+    - Removed: OldButton (no longer exists)
 
-Context file is now synced with current repository state.
+  frontend/hooks.md
+    + Added: useSummary
+
+Summary: Updated 3 files.
 ```
 
 ## What Gets Scanned
@@ -86,11 +100,13 @@ Context file is now synced with current repository state.
 The skill intelligently scans for:
 
 ### Tech Stack
+
 - Framework, language, and versions (from package.json, etc.)
 - Build tools
 - Key dependencies
 
 ### Code Organization
+
 - **Components**: React, Vue, Svelte components with descriptions
 - **Hooks**: Custom React hooks / Vue composables
 - **API Services**: Backend integration code
@@ -98,12 +114,14 @@ The skill intelligently scans for:
 - **Types**: TypeScript definitions and interfaces
 
 ### Patterns & Conventions
+
 - Export styles (named vs default)
 - Naming conventions
 - File organization patterns
 - Error handling approaches
 
 ### Environment & Build
+
 - Required environment variables (from .env.example)
 - Build commands and scripts
 - Testing setup (if present)
@@ -131,7 +149,21 @@ The context file is scoped to **where you run the command**:
 -> Creates packages/frontend/.opencode/context/repo-structure.md (frontend only)
 ```
 
-This makes it perfect for monorepos - you can have context files for each package.
+### Monorepo Setup
+
+For monorepos, you can have context files for each package. Add glob patterns to your `opencode.json`:
+
+```json
+{
+  "instructions": [
+    ".opencode/context/**/*.md",
+    "packages/frontend/.opencode/context/**/*.md",
+    "packages/backend/.opencode/context/**/*.md"
+  ]
+}
+```
+
+Then run `/context-update` from each package directory to generate its context.
 
 ## When to Run It
 
@@ -143,48 +175,40 @@ Run `/context-update` when:
 - **Periodically** - Keep context fresh (it's idempotent, safe to run anytime)
 - **Forgot to run it for a while?** - No problem! It scans current state, not history
 
-## Output Format
+## Output Structure
 
-The generated `repo-structure.md` includes:
+The skill creates **modular context files** based on what it discovers:
 
-```markdown
-# Repository Context
-
-Last updated: 2026-01-03 20:30:00
-
-## Tech Stack
-[Framework, languages, build tools, key dependencies]
-
-## Directory Structure
-[Tree view with purpose of each directory]
-
-## Reusable Components
-[Components with descriptions and paths]
-
-## Custom Hooks
-[Hooks with purposes and paths]
-
-## API Services
-[Services and what APIs they connect to]
-
-## Utilities
-[Helper modules and their purposes]
-
-## Type Definitions
-[Key types and interfaces]
-
-## Conventions & Patterns
-[Detected patterns in code organization]
-
-## Testing
-[Test framework and patterns]
-
-## Environment Variables
-[Required variables from .env.example]
-
-## Build & Scripts
-[Key commands and what they do]
 ```
+.opencode/context/
+├── repo-structure.md      # Always created - core project info
+├── frontend/              # Created if frontend-heavy
+│   ├── components.md      # If 3+ reusable components
+│   └── hooks.md           # If 3+ custom hooks
+├── backend/               # Created if backend-heavy  
+│   ├── api.md             # If significant API surface
+│   └── services.md        # If 3+ service modules
+└── shared/                # Created if significant shared code
+    ├── types.md           # Key TypeScript types
+    └── utilities.md       # Utility functions
+```
+
+**Simple projects** may only need `repo-structure.md`. **Larger projects** get additional files automatically when there's enough content to warrant separation.
+
+### repo-structure.md (always created)
+
+Contains: Tech stack, directory structure, conventions, environment variables, build scripts.
+
+### Additional files (created when relevant)
+
+| File | Created when... |
+|------|-----------------|
+| `frontend/components.md` | 3+ reusable UI components |
+| `frontend/hooks.md` | 3+ custom hooks/composables |
+| `backend/api.md` | Significant API endpoints |
+| `backend/services.md` | 3+ service modules |
+| `shared/types.md` | Key TypeScript types |
+| `shared/utilities.md` | 3+ utility modules |
 
 ## Customization
 
@@ -214,9 +238,14 @@ your-project/
 │   ├── skill/
 │   │   └── context-update/
 │   │       └── SKILL.md         # Skill instructions
-│   └── context/
-│       └── repo-structure.md    # Generated context (after first run)
-└── opencode.json                # Config with instructions array
+│   └── context/                 # Generated context (after first run)
+│       ├── repo-structure.md    # Always created
+│       ├── frontend/            # Optional, if relevant
+│       │   ├── components.md
+│       │   └── hooks.md
+│       └── backend/             # Optional, if relevant
+│           └── api.md
+└── opencode.json                # Config with glob pattern
 ```
 
 ## Security Note

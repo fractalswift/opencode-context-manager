@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const ASSETS_DIR = join(__dirname, '..', 'assets');
 
-const CONTEXT_INSTRUCTION_PATH = '.opencode/context/repo-structure.md';
+const CONTEXT_INSTRUCTION_PATH = '.opencode/context/**/*.md';
 
 // ANSI colors
 const colors = {
@@ -174,11 +174,13 @@ async function init(targetDir, options) {
   if (anyCreated) {
     console.log(colors.green('Done!'));
     console.log('');
-    console.log('Next steps:');
-    console.log(`  1. Run ${colors.cyan('/context-update')} in OpenCode to generate your context file`);
-    console.log(`  2. The context will be automatically included in every prompt`);
+    console.log('Next step - generate your context files:');
     console.log('');
-    console.log(colors.dim(`Output location: .opencode/context/repo-structure.md`));
+    console.log(`  ${colors.cyan('Option 1:')} Run ${colors.yellow('/context-update')} inside OpenCode`);
+    console.log(`  ${colors.cyan('Option 2:')} Run ${colors.yellow('opencode run "/context-update"')} from terminal`);
+    console.log('');
+    console.log(colors.dim('Context files will be created in .opencode/context/ and'));
+    console.log(colors.dim('automatically included in every OpenCode conversation.'));
   } else {
     console.log(colors.dim('Nothing to do - everything is already set up.'));
   }

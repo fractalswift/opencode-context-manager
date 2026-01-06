@@ -1,0 +1,6 @@
+{
+  "instructions": [
+    ".opencode/context/**/*.md"
+  ],
+  "$schema": "https://opencode.ai/config.json"
+}
