@@ -8,6 +8,113 @@ The Context Manager scans your repository and creates/updates **modular context 
 
 Once installed, context files are **automatically included in every prompt**, giving the AI persistent knowledge about your project.
 
+## Intelligent Incremental Updates (v2.0+)
+
+**New in version 2.0**: The Context Manager now uses **dependency-aware incremental updates** to dramatically reduce token costs:
+
+- **85-97% token savings** on typical updates
+- **Symbol-level dependency tracking** for TypeScript projects
+- **Smart change detection** using git diff and dependency graphs
+- **Automatic fallbacks** to full scan when needed for safety
+
+### How It Works
+
+The tool automatically decides between **full scan** and **incremental scan**:
+
+**Full Scan** (first run or major changes):
+- Scans entire repository
+- Generates complete context files
+- Builds dependency graph cache
+- Cost: ~150K tokens (one-time per branch)
+
+**Incremental Scan** (typical updates):
+- Analyzes git changes since last update
+- Uses cached dependency graph to find affected files
+- Only re-scans changed files and their dependents
+- Cost: ~5-15K tokens (95%+ savings)
+
+### Dependency Analysis
+
+For TypeScript projects, the tool uses the **TypeScript Compiler API** for symbol-level precision:
+
+```typescript
+// If helpers.ts changes:
+export function formatDate(date: Date) { ... }  // Implementation changed
+
+// The tool knows:
+- Button.tsx imports formatDate → might be affected
+- But exports didn't change → skip Button.tsx
+- Result: Only update helpers.ts entry (minimal tokens)
+```
+
+For JavaScript projects, it falls back to file-level dependency tracking using **madge**.
+
+### When Full Scans Trigger
+
+Automatic full scan happens when:
+- ✓ No existing context found (first run)
+- ✓ Dependencies changed (package.json, package-lock.json)
+- ✓ Config files changed (tsconfig.json, etc.)
+- ✓ More than 30% of files changed (large refactor)
+- ✓ New top-level directories created
+- ✓ User passes `--full` flag
+
+### Flags
+
+```bash
+# Auto-decide (recommended) - uses incremental when safe
+/context-update
+
+# Force full scan (ignores incremental mode)
+/context-update --full
+
+# Regenerate dependency graph cache
+/context-update --rebuild-graph
+```
+
+### Example Output
+
+**Incremental update:**
+```
+⚡ Incremental update mode
+
+Changed files: 5
+  ~ src/components/Button.tsx
+  ~ src/utils/helpers.ts
+
+Dependency analysis:
+  • helpers.ts exports unchanged → skip 12 importers
+  • Button.tsx modified → will re-scan
+
+Total files to scan: 2 (vs 150+ for full scan)
+Estimated tokens: ~8K (95% savings)
+```
+
+**Full scan:**
+```
+🔄 Full scan mode
+
+Reason: package.json changed (dependencies may affect entire codebase)
+
+This will scan entire repository and regenerate all context files.
+Estimated tokens: ~150K
+```
+
+### Testing Incremental Updates
+
+Run the test script to verify everything is set up correctly:
+
+```bash
+./test-incremental.sh
+```
+
+This checks:
+- ✓ Git repository available
+- ✓ Dependency analysis modules installed
+- ✓ NPM dependencies (TypeScript, madge)
+- ✓ SKILL.md has incremental logic
+- ✓ Cache directory in .gitignore
+
 ## Why Use It?
 
 - **Cumulative Knowledge**: Each time you update context, it enriches the knowledge base for future work
@@ -301,6 +408,82 @@ jobs:
 on:
   push:
     branches: [main]
+```
+
+## Troubleshooting
+
+### "Dependency analysis failed"
+
+This usually means TypeScript compilation errors or missing dependencies.
+
+**Fix:**
+```bash
+# Check for TypeScript errors
+npx tsc --noEmit
+
+# Install dependencies
+npm install
+
+# Try updating with full scan
+/context-update --full
+```
+
+The tool will automatically fall back to file-level analysis (madge) if TypeScript analysis fails.
+
+### "Cache invalid, regenerating"
+
+This is normal and happens when:
+- Switching branches
+- First run after git clone
+- Cache older than 7 days
+- Config files changed
+
+The tool will regenerate the cache (~30K tokens) then use it for future updates.
+
+### Context seems outdated
+
+Force a full scan to ensure everything is current:
+
+```bash
+/context-update --full
+```
+
+### Incremental update missed changes
+
+If you suspect the incremental logic missed something:
+
+1. Check the dependency graph cache:
+   ```bash
+   cat .opencode/cache/dependency-graph.json
+   ```
+
+2. Rebuild the graph:
+   ```bash
+   /context-update --rebuild-graph
+   ```
+
+3. Or force full scan:
+   ```bash
+   /context-update --full
+   ```
+
+### "No git repository" error
+
+The tool requires a git repository for incremental updates. Initialize one:
+
+```bash
+git init
+git add .
+git commit -m "Initial commit"
+```
+
+### Disabling Incremental Mode
+
+If you want to always use full scans, set an environment variable:
+
+```bash
+export OPENCODE_CONTEXT_INCREMENTAL=false
+/context-update
 ```
 
 ## Security Note

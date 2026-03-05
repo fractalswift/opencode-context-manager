@@ -1,13 +1,14 @@
 {
   "name": "opencode-context-manager",
-  "version": "1.1.0",
-  "description": "OpenCode plugin that maintains repository context for AI agents",
+  "version": "2.0.0",
+  "description": "OpenCode plugin that maintains repository context for AI agents with intelligent incremental updates",
   "type": "module",
   "bin": {
     "opencode-context-manager": "./bin/cli.js"
   },
   "files": [
     "bin",
+    "lib",
     "assets"
   ],
   "keywords": [
@@ -16,7 +17,9 @@
     "context",
     "repository",
     "ai",
-    "code-assistant"
+    "code-assistant",
+    "incremental",
+    "dependency-analysis"
   ],
   "author": "Matthew Macklin",
   "license": "MIT",
@@ -30,5 +33,9 @@
   "homepage": "https://github.com/matthewmacklin/opencode-context-manager#readme",
   "engines": {
     "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "typescript": "^5.0.0",
+    "madge": "^7.0.0"
   }
 }

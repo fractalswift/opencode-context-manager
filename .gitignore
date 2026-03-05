@@ -17,3 +17,6 @@ npm-debug.log*
 
 # Test output
 coverage/
+
+# OpenCode cache (dependency graphs, etc.)
+.opencode/cache/
