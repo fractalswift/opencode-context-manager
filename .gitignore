@@ -18,5 +18,5 @@ npm-debug.log*
 # Test output
 coverage/
 
-# OpenCode cache (dependency graphs, etc.)
-.opencode/cache/
+# OpenCode local-only cache (if any temp files)
+# Note: .opencode/analysis/ IS committed (shared across team)

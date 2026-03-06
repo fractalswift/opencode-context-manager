@@ -8,112 +8,148 @@ The Context Manager scans your repository and creates/updates **modular context 
 
 Once installed, context files are **automatically included in every prompt**, giving the AI persistent knowledge about your project.
 
-## Intelligent Incremental Updates (v2.0+)
+## Intelligent Dependency-Aware Updates (v2.0+)
 
-**New in version 2.0**: The Context Manager now uses **dependency-aware incremental updates** to dramatically reduce token costs:
+**Version 2.0** introduces a two-phase architecture: **static analysis** (zero AI tokens) followed by **selective AI reading** (minimal tokens).
 
-- **85-97% token savings** on typical updates
-- **Symbol-level dependency tracking** for TypeScript projects
-- **Smart change detection** using git diff and dependency graphs
-- **Automatic fallbacks** to full scan when needed for safety
+### Architecture
+
+```
+Phase 1: Static Analysis (0 AI tokens)
+  ├── TypeScript Compiler API → imports, exports, signatures, JSDoc
+  ├── Dependency graph → file relationships, importance scores
+  ├── Auto-summarizer → summaries for well-documented files
+  └── Capability detector → database, auth, integrations, etc.
+
+Phase 2: AI Agent (minimal tokens)
+  ├── Reads pre-analysis summary (map of the codebase)
+  ├── Reads only important/undocumented files
+  ├── Detects cross-file patterns from samples
+  └── Generates context from summaries + readings
+```
+
+### Token Savings
+
+| Scenario | Cost | vs Reading Everything |
+|----------|------|----------------------|
+| **First run** | ~150-200K tokens | 40-55% savings |
+| **Full scan (cached)** | ~15-20K tokens | 94% savings |
+| **Incremental (5 files)** | ~8-12K tokens | 97% savings |
+| **Incremental (1 file)** | ~3-5K tokens | 99% savings |
+| **No changes** | ~0 tokens | 100% savings |
 
 ### How It Works
 
-The tool automatically decides between **full scan** and **incremental scan**:
+**First Run** (one-time investment):
+1. Static analysis builds dependency graph and auto-generates summaries (0 AI tokens)
+2. AI reads only important files (those without JSDoc, heavily imported, etc.)
+3. AI generates comprehensive context from summaries + file readings
+4. Everything cached in `.opencode/analysis/` (committed to git for team sharing)
 
-**Full Scan** (first run or major changes):
-- Scans entire repository
-- Generates complete context files
-- Builds dependency graph cache
-- Cost: ~150K tokens (one-time per branch)
+**Subsequent Updates** (cheap and fast):
+1. Git diff identifies changed files
+2. Dependency graph finds affected files (imports/exports tracking)
+3. AI re-reads only affected files and updates their context sections
+4. Unchanged content preserved
 
-**Incremental Scan** (typical updates):
-- Analyzes git changes since last update
-- Uses cached dependency graph to find affected files
-- Only re-scans changed files and their dependents
-- Cost: ~5-15K tokens (95%+ savings)
+### What Gets Detected Automatically (0 Tokens)
+
+The static analysis pre-processes your codebase and detects:
+
+- **Dependencies & imports**: Symbol-level tracking (which functions imported from where)
+- **Project capabilities**: Database/ORM, auth provider, state management, styling framework, API style, integrations (Stripe, SendGrid, etc.), deployment platform, CI/CD, queues, realtime, i18n, testing, logging, monorepo setup, and more
+- **File importance**: Scores each file by import count, JSDoc presence, file size, and complexity
+- **Auto-summaries**: Generates descriptions for well-documented and simple files without AI
 
 ### Dependency Analysis
 
-For TypeScript projects, the tool uses the **TypeScript Compiler API** for symbol-level precision:
+**TypeScript** (primary, symbol-level):
+- Uses TypeScript Compiler API
+- Tracks which specific symbols are imported from each module
+- Extracts JSDoc comments, interface members, function signatures
+- Detects `any` types and generic names as needing AI reading
 
-```typescript
-// If helpers.ts changes:
-export function formatDate(date: Date) { ... }  // Implementation changed
+**JavaScript** (fallback, file-level):
+- Uses madge for file-level dependency tracking
+- Detects circular dependencies
 
-// The tool knows:
-- Button.tsx imports formatDate → might be affected
-- But exports didn't change → skip Button.tsx
-- Result: Only update helpers.ts entry (minimal tokens)
-```
-
-For JavaScript projects, it falls back to file-level dependency tracking using **madge**.
-
-### When Full Scans Trigger
-
-Automatic full scan happens when:
-- ✓ No existing context found (first run)
-- ✓ Dependencies changed (package.json, package-lock.json)
-- ✓ Config files changed (tsconfig.json, etc.)
-- ✓ More than 30% of files changed (large refactor)
-- ✓ New top-level directories created
-- ✓ User passes `--full` flag
+**Other languages**: Falls back to pattern-based categorization
 
 ### Flags
 
 ```bash
-# Auto-decide (recommended) - uses incremental when safe
+# Auto-decide (recommended)
 /context-update
 
-# Force full scan (ignores incremental mode)
+# Force full scan
 /context-update --full
 
-# Regenerate dependency graph cache
+# Rebuild dependency graph
 /context-update --rebuild-graph
 ```
 
 ### Example Output
 
-**Incremental update:**
-```
-⚡ Incremental update mode
+The tool outputs a human-readable **action plan** before scanning:
 
-Changed files: 5
+```
+═══════════════════════════════════════════════════════════
+  CONTEXT UPDATE ACTION PLAN
+═══════════════════════════════════════════════════════════
+
+MODE: INCREMENTAL UPDATE
+REASON: Changes are localized and safe for incremental update
+
+CHANGED FILES: 3
   ~ src/components/Button.tsx
   ~ src/utils/helpers.ts
+  + src/hooks/useDebounce.ts
 
-Dependency analysis:
-  • helpers.ts exports unchanged → skip 12 importers
-  • Button.tsx modified → will re-scan
+AFFECTED FILES: 4
+  • src/components/Button.tsx
+    Directly modified
+  • src/utils/helpers.ts
+    Directly modified (exports unchanged, importers safe)
+  • src/hooks/useDebounce.ts
+    New file added
+  • src/pages/Home.tsx
+    Imports Button.tsx (exports changed)
 
-Total files to scan: 2 (vs 150+ for full scan)
-Estimated tokens: ~8K (95% savings)
+ACTIONS:
+  1. Read ONLY the affected files listed above
+  2. Update their summaries in the analysis cache
+  3. Update ONLY the affected sections in context files
+  4. Preserve all unchanged content
+  5. Save context with new git metadata
+
+───────────────────────────────────────────────────────────
+ESTIMATED TOKEN USAGE: ~10K tokens
+SAVINGS vs full read: ~97%
+═══════════════════════════════════════════════════════════
 ```
 
-**Full scan:**
+### Shared Analysis Cache
+
+Analysis artifacts are committed to git so the whole team benefits:
+
 ```
-🔄 Full scan mode
-
-Reason: package.json changed (dependencies may affect entire codebase)
-
-This will scan entire repository and regenerate all context files.
-Estimated tokens: ~150K
+.opencode/
+  ├── analysis/                         # Committed to git
+  │   └── codebase-analysis.json        # Dependency graph + summaries + capabilities
+  ├── context/                          # Committed to git
+  │   ├── repo-structure.md
+  │   └── (optional category files)
+  ├── skill/
+  └── command/
 ```
 
-### Testing Incremental Updates
+### Testing
 
-Run the test script to verify everything is set up correctly:
+Run the test script to verify the system:
 
 ```bash
 ./test-incremental.sh
 ```
-
-This checks:
-- ✓ Git repository available
-- ✓ Dependency analysis modules installed
-- ✓ NPM dependencies (TypeScript, madge)
-- ✓ SKILL.md has incremental logic
-- ✓ Cache directory in .gitignore
 
 ## Why Use It?
 
@@ -452,12 +488,12 @@ Force a full scan to ensure everything is current:
 
 If you suspect the incremental logic missed something:
 
-1. Check the dependency graph cache:
+1. Check the analysis cache:
    ```bash
-   cat .opencode/cache/dependency-graph.json
+   cat .opencode/analysis/codebase-analysis.json | head -20
    ```
 
-2. Rebuild the graph:
+2. Rebuild the dependency graph:
    ```bash
    /context-update --rebuild-graph
    ```
